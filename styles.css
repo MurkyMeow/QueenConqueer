@@ -1,0 +1,16 @@
+html {
+  background: black;
+  color: whitesmoke;
+}
+
+canvas {
+  border: 1px solid whitesmoke;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: calc(144px * 4);
+  width: calc(256px * 4);
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+}
