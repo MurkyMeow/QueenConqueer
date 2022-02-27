@@ -57,6 +57,15 @@ type alias Model =
     }
 
 
+type alias GameObject =
+    { mesh : WebGL.Mesh Vertex
+    , texture : Texture
+    , position : Vec2
+    , rotation : Float
+    , rotationAxis : Vec3
+    }
+
+
 type Msg
     = FramePassed Float
     | KeyPressed Key
@@ -165,14 +174,29 @@ plane =
         ]
 
 
-makeTransform : Vec3 -> Vec2 -> Float -> Mat4
-makeTransform position size rotation =
+makeTransform : Vec3 -> Vec2 -> Float -> Vec3 -> Mat4
+makeTransform position size rotation rotationAxis =
     let
         transform =
             Mat4.makeTranslate position
 
+        rotTranslation =
+            Mat4.makeTranslate rotationAxis
+
+        rotTranslationInv =
+            let
+                inv =
+                    Mat4.inverse rotTranslation
+            in
+            case inv of
+                Just mat ->
+                    mat
+
+                Nothing ->
+                    Mat4.identity
+
         rotation_ =
-            Mat4.makeRotate rotation (vec3 0 0 1)
+            Mat4.mul rotTranslationInv (Mat4.mul (Mat4.makeRotate rotation (vec3 0 1 0)) rotTranslation)
 
         scale =
             Mat4.makeScale (vec3 (Vec2.getX size) (Vec2.getY size) 1)
@@ -202,23 +226,39 @@ view model =
                         (Mat4.makePerspective 45 (w / h) 0.01 100)
                         (Mat4.makeLookAt pos (Vec3.add pos dir) Vec3.j)
 
-                wallTranform =
-                    makeTransform (vec3 0 0 0) (vec2 1 1) 0
+                objects : List GameObject
+                objects =
+                    [ GameObject plane wall (vec2 0 0) 0 (vec3 0 0 0)
+                    , GameObject plane wall (vec2 2 0) -1 (vec3 1 0 0)
+                    , GameObject plane wall (vec2 3 0) 1 (vec3 -1 0 0)
+                    , GameObject plane wall (vec2 5 0) 0 (vec3 0 0 0)
+                    ]
             in
             WebGL.toHtml
                 [ width w
                 , height h
                 , style "display" "block"
                 ]
-                [ WebGL.entity
-                    vertexShader
-                    fragmentShader
-                    plane
-                    { texture = wall, perspective = perspective, transform = wallTranform }
-                ]
+                (List.map (gameObjectToEntity perspective) objects)
 
         Nothing ->
             text "Loading textures..."
+
+
+gameObjectToEntity : Mat4 -> GameObject -> WebGL.Entity
+gameObjectToEntity perspective obj =
+    let
+        pos3d =
+            vec3 (Vec2.getX obj.position) 0 (Vec2.getY obj.position)
+
+        transform =
+            makeTransform pos3d (vec2 1 1) obj.rotation obj.rotationAxis
+    in
+    WebGL.entity
+        vertexShader
+        fragmentShader
+        plane
+        { texture = obj.texture, perspective = perspective, transform = transform }
 
 
 type alias Vertex =
