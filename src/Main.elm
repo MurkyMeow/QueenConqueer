@@ -170,11 +170,50 @@ init _ =
     )
 
 
+topLeft : Vec2
+topLeft =
+    vec2 0 0
+
+
+topRight : Vec2
+topRight =
+    vec2 1 0
+
+
+bottomRight : Vec2
+bottomRight =
+    vec2 1 1
+
+
+bottomLeft : Vec2
+bottomLeft =
+    vec2 0 1
+
+
 plane : WebGL.Mesh Vertex
 plane =
     WebGL.triangles
-        [ ( Vertex (vec3 -1 -1 0) (vec2 0 0), Vertex (vec3 1 -1 0) (vec2 1 0), Vertex (vec3 1 1 0) (vec2 1 1) )
-        , ( Vertex (vec3 -1 -1 0) (vec2 0 0), Vertex (vec3 -1 1 0) (vec2 0 1), Vertex (vec3 1 1 0) (vec2 1 1) )
+        [ ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 1 -1 0) topRight, Vertex (vec3 1 1 0) bottomRight )
+        , ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 -1 1 0) bottomLeft, Vertex (vec3 1 1 0) bottomRight )
+        ]
+
+
+treeMesh : WebGL.Mesh Vertex
+treeMesh =
+    let
+        rot45 =
+            Mat4.transform (Mat4.makeRotate 1 (vec3 2 3 1))
+
+        rot90 =
+            Mat4.transform (Mat4.makeRotate 3 (vec3 2 3 1))
+    in
+    WebGL.triangles
+        [ ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 1 -1 0) topRight, Vertex (vec3 1 1 0) bottomRight )
+        , ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 -1 1 0) bottomLeft, Vertex (vec3 1 1 0) bottomRight )
+        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 1 -1 0)) topRight, Vertex (rot45 (vec3 1 1 0)) bottomRight )
+        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 -1 1 0)) bottomLeft, Vertex (rot45 (vec3 1 1 0)) bottomRight )
+        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 1 -1 0)) topRight, Vertex (rot90 (vec3 1 1 0)) bottomRight )
+        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 -1 1 0)) bottomLeft, Vertex (rot90 (vec3 1 1 0)) bottomRight )
         ]
 
 
@@ -254,9 +293,7 @@ view model =
                     , GameObject plane wall (vec2 2 0) -1 (vec3 1 0 0) (vec2 1 1) (vec3 0 0 0)
                     , GameObject plane wall (vec2 3 0) 1 (vec3 -1 0 0) (vec2 1 1) (vec3 0 0 0)
                     , GameObject plane wall (vec2 5 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
-                    , GameObject plane tree (vec2 2 0) 0 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
-                    , GameObject plane tree (vec2 2 0) 1 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
-                    , GameObject plane tree (vec2 2 0) 2 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
+                    , GameObject treeMesh tree (vec2 2 0) 0 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
                     ]
             in
             WebGL.toHtml
