@@ -63,6 +63,8 @@ type alias GameObject =
     , position : Vec2
     , rotation : Float
     , rotationAxis : Vec3
+    , size : Vec2
+    , sizeAxis : Vec3
     }
 
 
@@ -76,12 +78,14 @@ type Msg
 
 type alias Textures =
     { wall : Texture
+    , tree : Texture
     }
 
 
 fetchTextures : Cmd Msg
 fetchTextures =
     [ "/static/wall.png"
+    , "/static/tree.png"
     ]
         |> List.map
             (Texture.loadWith
@@ -94,8 +98,8 @@ fetchTextures =
         |> Task.andThen
             (\textures ->
                 case textures of
-                    wall :: _ ->
-                        Task.succeed (Textures wall)
+                    wall :: tree :: _ ->
+                        Task.succeed (Textures wall tree)
 
                     _ ->
                         Task.fail Texture.LoadError
@@ -174,8 +178,8 @@ plane =
         ]
 
 
-makeTransform : Vec3 -> Vec2 -> Float -> Vec3 -> Mat4
-makeTransform position size rotation rotationAxis =
+makeTransform : Vec3 -> Vec2 -> Float -> Vec3 -> Vec3 -> Mat4
+makeTransform position size rotation rotationAxis sizeAxis =
     let
         transform =
             Mat4.makeTranslate position
@@ -195,11 +199,29 @@ makeTransform position size rotation rotationAxis =
                 Nothing ->
                     Mat4.identity
 
+        scaleTranslation =
+            Mat4.makeTranslate sizeAxis
+
+        scaleTranslationInv =
+            let
+                inv =
+                    Mat4.inverse scaleTranslation
+            in
+            case inv of
+                Just mat ->
+                    mat
+
+                Nothing ->
+                    Mat4.identity
+
         rotation_ =
             Mat4.mul rotTranslationInv (Mat4.mul (Mat4.makeRotate rotation (vec3 0 1 0)) rotTranslation)
 
+        scale3d =
+            vec3 (Vec2.getX size) (Vec2.getY size) 1
+
         scale =
-            Mat4.makeScale (vec3 (Vec2.getX size) (Vec2.getY size) 1)
+            Mat4.mul scaleTranslationInv (Mat4.mul (Mat4.makeScale scale3d) scaleTranslation)
     in
     Mat4.mul (Mat4.mul transform rotation_) scale
 
@@ -207,7 +229,7 @@ makeTransform position size rotation rotationAxis =
 view : Model -> Html msg
 view model =
     case model.textures of
-        Just { wall } ->
+        Just { wall, tree } ->
             let
                 w =
                     400
@@ -228,10 +250,13 @@ view model =
 
                 objects : List GameObject
                 objects =
-                    [ GameObject plane wall (vec2 0 0) 0 (vec3 0 0 0)
-                    , GameObject plane wall (vec2 2 0) -1 (vec3 1 0 0)
-                    , GameObject plane wall (vec2 3 0) 1 (vec3 -1 0 0)
-                    , GameObject plane wall (vec2 5 0) 0 (vec3 0 0 0)
+                    [ GameObject plane wall (vec2 0 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
+                    , GameObject plane wall (vec2 2 0) -1 (vec3 1 0 0) (vec2 1 1) (vec3 0 0 0)
+                    , GameObject plane wall (vec2 3 0) 1 (vec3 -1 0 0) (vec2 1 1) (vec3 0 0 0)
+                    , GameObject plane wall (vec2 5 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
+                    , GameObject plane tree (vec2 2 0) 0 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
+                    , GameObject plane tree (vec2 2 0) 1 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
+                    , GameObject plane tree (vec2 2 0) 2 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
                     ]
             in
             WebGL.toHtml
@@ -252,7 +277,7 @@ gameObjectToEntity perspective obj =
             vec3 (Vec2.getX obj.position) 0 (Vec2.getY obj.position)
 
         transform =
-            makeTransform pos3d (vec2 1 1) obj.rotation obj.rotationAxis
+            makeTransform pos3d obj.size obj.rotation obj.rotationAxis obj.sizeAxis
     in
     WebGL.entity
         vertexShader
@@ -311,6 +336,11 @@ fragmentShader =
 
         void main () {
             gl_FragColor = texture2D(texture, vcoord);
+
+            // make the transparency work
+            if (gl_FragColor.a == 0.0) {
+                discard;
+            }
         }
     |]
 
@@ -379,22 +409,14 @@ step delta model =
         ( newPosX, newPosY ) =
             case ( model.goingForward, model.goingBackward ) of
                 ( True, False ) ->
-                    attemptMove
-                        ( model.posX + cos newAngle * movementSpeed
-                        , model.posY + sin newAngle * movementSpeed
-                        )
-                        ( model.posX
-                        , model.posY
-                        )
+                    ( model.posX + cos newAngle * movementSpeed
+                    , model.posY + sin newAngle * movementSpeed
+                    )
 
                 ( False, True ) ->
-                    attemptMove
-                        ( model.posX - cos newAngle * movementSpeed
-                        , model.posY - sin newAngle * movementSpeed
-                        )
-                        ( model.posX
-                        , model.posY
-                        )
+                    ( model.posX - cos newAngle * movementSpeed
+                    , model.posY - sin newAngle * movementSpeed
+                    )
 
                 _ ->
                     ( model.posX, model.posY )
