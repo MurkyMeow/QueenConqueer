@@ -202,10 +202,10 @@ treeMesh : WebGL.Mesh Vertex
 treeMesh =
     let
         rot45 =
-            Mat4.transform (Mat4.makeRotate 1 (vec3 2 3 1))
+            Mat4.transform (Mat4.makeRotate 1 (vec3 0 1 0))
 
         rot90 =
-            Mat4.transform (Mat4.makeRotate 3 (vec3 2 3 1))
+            Mat4.transform (Mat4.makeRotate 3 (vec3 0 1 0))
     in
     WebGL.triangles
         [ ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 1 -1 0) topRight, Vertex (vec3 1 1 0) bottomRight )
@@ -319,7 +319,7 @@ gameObjectToEntity perspective obj =
     WebGL.entity
         vertexShader
         fragmentShader
-        plane
+        obj.mesh
         { texture = obj.texture, perspective = perspective, transform = transform }
 
 
