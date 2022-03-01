@@ -3,7 +3,7 @@ module Main exposing (main)
 import Array exposing (Array)
 import Browser
 import Browser.Events as Events
-import Html exposing (Html, text)
+import Html exposing (Html)
 import Html.Attributes exposing (height, style, width)
 import Json.Decode as Decode exposing (Decoder)
 import Math.Matrix4 as Mat4 exposing (Mat4)
@@ -53,7 +53,7 @@ type alias Model =
     , posX : Float
     , posY : Float
     , angle : Float
-    , textures : Maybe Textures
+    , objects : List GameObject
     }
 
 
@@ -164,7 +164,7 @@ init _ =
       , posX = 0.5
       , posY = 0.5
       , angle = pi
-      , textures = Nothing
+      , objects = []
       }
     , fetchTextures
     )
@@ -267,44 +267,30 @@ makeTransform position size rotation rotationAxis sizeAxis =
 
 view : Model -> Html msg
 view model =
-    case model.textures of
-        Just { wall, tree } ->
-            let
-                w =
-                    400
+    let
+        w =
+            400
 
-                h =
-                    400
+        h =
+            400
 
-                pos =
-                    vec3 model.posX 0 model.posY
+        pos =
+            vec3 model.posX 0 model.posY
 
-                dir =
-                    vec3 (cos model.angle) 0 (sin model.angle)
+        dir =
+            vec3 (cos model.angle) 0 (sin model.angle)
 
-                perspective =
-                    Mat4.mul
-                        (Mat4.makePerspective 45 (w / h) 0.01 100)
-                        (Mat4.makeLookAt pos (Vec3.add pos dir) Vec3.j)
-
-                objects : List GameObject
-                objects =
-                    [ GameObject plane wall (vec2 0 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
-                    , GameObject plane wall (vec2 2 0) -1 (vec3 1 0 0) (vec2 1 1) (vec3 0 0 0)
-                    , GameObject plane wall (vec2 3 0) 1 (vec3 -1 0 0) (vec2 1 1) (vec3 0 0 0)
-                    , GameObject plane wall (vec2 5 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
-                    , GameObject treeMesh tree (vec2 2 0) 0 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
-                    ]
-            in
-            WebGL.toHtml
-                [ width w
-                , height h
-                , style "display" "block"
-                ]
-                (List.map (gameObjectToEntity perspective) objects)
-
-        Nothing ->
-            text "Loading textures..."
+        perspective =
+            Mat4.mul
+                (Mat4.makePerspective 45 (w / h) 0.01 100)
+                (Mat4.makeLookAt pos (Vec3.add pos dir) Vec3.j)
+    in
+    WebGL.toHtml
+        [ width w
+        , height h
+        , style "display" "block"
+        ]
+        (List.map (gameObjectToEntity perspective) model.objects)
 
 
 gameObjectToEntity : Mat4 -> GameObject -> WebGL.Entity
@@ -382,6 +368,16 @@ fragmentShader =
     |]
 
 
+scene1Objects : Textures -> List GameObject
+scene1Objects { wall, tree } =
+    [ GameObject plane wall (vec2 0 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
+    , GameObject plane wall (vec2 2 0) -1 (vec3 1 0 0) (vec2 1 1) (vec3 0 0 0)
+    , GameObject plane wall (vec2 3 0) 1 (vec3 -1 0 0) (vec2 1 1) (vec3 0 0 0)
+    , GameObject plane wall (vec2 5 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
+    , GameObject treeMesh tree (vec2 2 0) 0 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
+    ]
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -417,7 +413,7 @@ update msg model =
             ( { model | rotatingRight = False }, Cmd.none )
 
         TexturesLoaded textures ->
-            ( { model | textures = Just textures }, Cmd.none )
+            ( { model | objects = scene1Objects textures }, Cmd.none )
 
         TexturesError _ ->
             ( model, Cmd.none )
