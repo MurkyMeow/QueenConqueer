@@ -205,12 +205,12 @@ treeMesh =
             Mat4.transform (Mat4.makeRotate 3 (vec3 0 1 0))
     in
     WebGL.triangles
-        [ ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 1 -1 0) topRight, Vertex (vec3 1 1 0) bottomRight )
-        , ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 -1 1 0) bottomLeft, Vertex (vec3 1 1 0) bottomRight )
-        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 1 -1 0)) topRight, Vertex (rot45 (vec3 1 1 0)) bottomRight )
-        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 -1 1 0)) bottomLeft, Vertex (rot45 (vec3 1 1 0)) bottomRight )
-        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 1 -1 0)) topRight, Vertex (rot90 (vec3 1 1 0)) bottomRight )
-        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 -1 1 0)) bottomLeft, Vertex (rot90 (vec3 1 1 0)) bottomRight )
+        [ ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 1 -1 0) topRight, Vertex (vec3 1 4 0) bottomRight )
+        , ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 -1 4 0) bottomLeft, Vertex (vec3 1 4 0) bottomRight )
+        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 1 -1 0)) topRight, Vertex (rot45 (vec3 1 4 0)) bottomRight )
+        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 -1 4 0)) bottomLeft, Vertex (rot45 (vec3 1 4 0)) bottomRight )
+        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 1 -1 0)) topRight, Vertex (rot90 (vec3 1 4 0)) bottomRight )
+        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 -1 4 0)) bottomLeft, Vertex (rot90 (vec3 1 4 0)) bottomRight )
         ]
 
 
