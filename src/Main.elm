@@ -3,7 +3,7 @@ module Main exposing (main)
 import Array exposing (Array)
 import Browser
 import Browser.Events as Events
-import Html exposing (Html, text)
+import Html exposing (Html)
 import Html.Attributes exposing (height, style, width)
 import Json.Decode as Decode exposing (Decoder)
 import Math.Matrix4 as Mat4 exposing (Mat4)
@@ -53,7 +53,15 @@ type alias Model =
     , posX : Float
     , posY : Float
     , angle : Float
-    , textures : Maybe Textures
+    , objects : List GameObject
+    }
+
+
+type alias GameObject =
+    { mesh : WebGL.Mesh Vertex
+    , texture : Texture
+    , position : Vec2
+    , rotation : Maybe ( Float, Vec3 )
     }
 
 
@@ -67,12 +75,14 @@ type Msg
 
 type alias Textures =
     { wall : Texture
+    , tree : Texture
     }
 
 
 fetchTextures : Cmd Msg
 fetchTextures =
     [ "/static/wall.png"
+    , "/static/tree.png"
     ]
         |> List.map
             (Texture.loadWith
@@ -85,8 +95,8 @@ fetchTextures =
         |> Task.andThen
             (\textures ->
                 case textures of
-                    wall :: _ ->
-                        Task.succeed (Textures wall)
+                    wall :: tree :: _ ->
+                        Task.succeed (Textures wall tree)
 
                     _ ->
                         Task.fail Texture.LoadError
@@ -151,74 +161,138 @@ init _ =
       , posX = 0.5
       , posY = 0.5
       , angle = pi
-      , textures = Nothing
+      , objects = []
       }
     , fetchTextures
     )
 
 
+topLeft : Vec2
+topLeft =
+    vec2 0 0
+
+
+topRight : Vec2
+topRight =
+    vec2 1 0
+
+
+bottomRight : Vec2
+bottomRight =
+    vec2 1 1
+
+
+bottomLeft : Vec2
+bottomLeft =
+    vec2 0 1
+
+
 plane : WebGL.Mesh Vertex
 plane =
     WebGL.triangles
-        [ ( Vertex (vec3 -1 -1 0) (vec2 0 0), Vertex (vec3 1 -1 0) (vec2 1 0), Vertex (vec3 1 1 0) (vec2 1 1) )
-        , ( Vertex (vec3 -1 -1 0) (vec2 0 0), Vertex (vec3 -1 1 0) (vec2 0 1), Vertex (vec3 1 1 0) (vec2 1 1) )
+        [ ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 1 -1 0) topRight, Vertex (vec3 1 1 0) bottomRight )
+        , ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 -1 1 0) bottomLeft, Vertex (vec3 1 1 0) bottomRight )
         ]
 
 
-makeTransform : Vec3 -> Vec2 -> Float -> Mat4
-makeTransform position size rotation =
+treeMesh : WebGL.Mesh Vertex
+treeMesh =
     let
-        transform =
-            Mat4.makeTranslate position
+        rot45 =
+            Mat4.transform (Mat4.makeRotate 1 (vec3 0 1 0))
 
-        rotation_ =
-            Mat4.makeRotate rotation (vec3 0 0 1)
-
-        scale =
-            Mat4.makeScale (vec3 (Vec2.getX size) (Vec2.getY size) 1)
+        rot90 =
+            Mat4.transform (Mat4.makeRotate 3 (vec3 0 1 0))
     in
-    Mat4.mul (Mat4.mul transform rotation_) scale
+    WebGL.triangles
+        [ ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 1 -1 0) topRight, Vertex (vec3 1 4 0) bottomRight )
+        , ( Vertex (vec3 -1 -1 0) topLeft, Vertex (vec3 -1 4 0) bottomLeft, Vertex (vec3 1 4 0) bottomRight )
+        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 1 -1 0)) topRight, Vertex (rot45 (vec3 1 4 0)) bottomRight )
+        , ( Vertex (rot45 (vec3 -1 -1 0)) topLeft, Vertex (rot45 (vec3 -1 4 0)) bottomLeft, Vertex (rot45 (vec3 1 4 0)) bottomRight )
+        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 1 -1 0)) topRight, Vertex (rot90 (vec3 1 4 0)) bottomRight )
+        , ( Vertex (rot90 (vec3 -1 -1 0)) topLeft, Vertex (rot90 (vec3 -1 4 0)) bottomLeft, Vertex (rot90 (vec3 1 4 0)) bottomRight )
+        ]
+
+
+rotationTransform : ( Float, Vec3 ) -> Mat4
+rotationTransform ( value, origin ) =
+    let
+        rotationMat =
+            Mat4.makeRotate value Vec3.j
+
+        originTranslation =
+            Mat4.makeTranslate origin
+
+        originTranslationInv =
+            let
+                inv =
+                    Mat4.inverse originTranslation
+            in
+            case inv of
+                Just mat ->
+                    mat
+
+                Nothing ->
+                    Mat4.identity
+    in
+    Mat4.mul originTranslationInv (Mat4.mul rotationMat originTranslation)
+
+
+makeTransform : GameObject -> Mat4
+makeTransform { position, rotation } =
+    let
+        pos3d =
+            vec3 (Vec2.getX position) 0 (Vec2.getY position)
+
+        translation =
+            Mat4.makeTranslate pos3d
+    in
+    case rotation of
+        Just r ->
+            Mat4.mul translation (rotationTransform r)
+
+        Nothing ->
+            translation
 
 
 view : Model -> Html msg
 view model =
-    case model.textures of
-        Just { wall } ->
-            let
-                w =
-                    400
+    let
+        w =
+            400
 
-                h =
-                    400
+        h =
+            400
 
-                pos =
-                    vec3 model.posX 0 model.posY
+        pos =
+            vec3 model.posX 0 model.posY
 
-                dir =
-                    vec3 (cos model.angle) 0 (sin model.angle)
+        dir =
+            vec3 (cos model.angle) 0 (sin model.angle)
 
-                perspective =
-                    Mat4.mul
-                        (Mat4.makePerspective 45 (w / h) 0.01 100)
-                        (Mat4.makeLookAt pos (Vec3.add pos dir) Vec3.j)
+        perspective =
+            Mat4.mul
+                (Mat4.makePerspective 45 (w / h) 0.01 100)
+                (Mat4.makeLookAt pos (Vec3.add pos dir) Vec3.j)
+    in
+    WebGL.toHtml
+        [ width w
+        , height h
+        , style "display" "block"
+        ]
+        (List.map (gameObjectToEntity perspective) model.objects)
 
-                wallTranform =
-                    makeTransform (vec3 0 0 0) (vec2 1 1) 0
-            in
-            WebGL.toHtml
-                [ width w
-                , height h
-                , style "display" "block"
-                ]
-                [ WebGL.entity
-                    vertexShader
-                    fragmentShader
-                    plane
-                    { texture = wall, perspective = perspective, transform = wallTranform }
-                ]
 
-        Nothing ->
-            text "Loading textures..."
+gameObjectToEntity : Mat4 -> GameObject -> WebGL.Entity
+gameObjectToEntity perspective obj =
+    WebGL.entity
+        vertexShader
+        fragmentShader
+        obj.mesh
+        { texture = obj.texture
+        , perspective = perspective
+        , transform = makeTransform obj
+        }
 
 
 type alias Vertex =
@@ -271,8 +345,23 @@ fragmentShader =
 
         void main () {
             gl_FragColor = texture2D(texture, vcoord);
+
+            // make the transparency work
+            if (gl_FragColor.a == 0.0) {
+                discard;
+            }
         }
     |]
+
+
+scene1Objects : Textures -> List GameObject
+scene1Objects { wall, tree } =
+    [ GameObject plane wall (vec2 0 0) Nothing
+    , GameObject plane wall (vec2 2 0) (Just ( -1, vec3 1 0 0 ))
+    , GameObject plane wall (vec2 3 0) (Just ( 1, vec3 -1 0 0 ))
+    , GameObject plane wall (vec2 5 0) Nothing
+    , GameObject treeMesh tree (vec2 2 0) Nothing
+    ]
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -310,7 +399,7 @@ update msg model =
             ( { model | rotatingRight = False }, Cmd.none )
 
         TexturesLoaded textures ->
-            ( { model | textures = Just textures }, Cmd.none )
+            ( { model | objects = scene1Objects textures }, Cmd.none )
 
         TexturesError _ ->
             ( model, Cmd.none )
@@ -339,22 +428,14 @@ step delta model =
         ( newPosX, newPosY ) =
             case ( model.goingForward, model.goingBackward ) of
                 ( True, False ) ->
-                    attemptMove
-                        ( model.posX + cos newAngle * movementSpeed
-                        , model.posY + sin newAngle * movementSpeed
-                        )
-                        ( model.posX
-                        , model.posY
-                        )
+                    ( model.posX + cos newAngle * movementSpeed
+                    , model.posY + sin newAngle * movementSpeed
+                    )
 
                 ( False, True ) ->
-                    attemptMove
-                        ( model.posX - cos newAngle * movementSpeed
-                        , model.posY - sin newAngle * movementSpeed
-                        )
-                        ( model.posX
-                        , model.posY
-                        )
+                    ( model.posX - cos newAngle * movementSpeed
+                    , model.posY - sin newAngle * movementSpeed
+                    )
 
                 _ ->
                     ( model.posX, model.posY )
