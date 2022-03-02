@@ -61,10 +61,7 @@ type alias GameObject =
     { mesh : WebGL.Mesh Vertex
     , texture : Texture
     , position : Vec2
-    , rotation : Float
-    , rotationAxis : Vec3
-    , size : Vec2
-    , sizeAxis : Vec3
+    , rotation : Maybe ( Float, Vec3 )
     }
 
 
@@ -217,19 +214,19 @@ treeMesh =
         ]
 
 
-makeTransform : Vec3 -> Vec2 -> Float -> Vec3 -> Vec3 -> Mat4
-makeTransform position size rotation rotationAxis sizeAxis =
+rotationTransform : ( Float, Vec3 ) -> Mat4
+rotationTransform ( value, origin ) =
     let
-        transform =
-            Mat4.makeTranslate position
+        rotationMat =
+            Mat4.makeRotate value Vec3.j
 
-        rotTranslation =
-            Mat4.makeTranslate rotationAxis
+        originTranslation =
+            Mat4.makeTranslate origin
 
-        rotTranslationInv =
+        originTranslationInv =
             let
                 inv =
-                    Mat4.inverse rotTranslation
+                    Mat4.inverse originTranslation
             in
             case inv of
                 Just mat ->
@@ -237,32 +234,25 @@ makeTransform position size rotation rotationAxis sizeAxis =
 
                 Nothing ->
                     Mat4.identity
-
-        scaleTranslation =
-            Mat4.makeTranslate sizeAxis
-
-        scaleTranslationInv =
-            let
-                inv =
-                    Mat4.inverse scaleTranslation
-            in
-            case inv of
-                Just mat ->
-                    mat
-
-                Nothing ->
-                    Mat4.identity
-
-        rotation_ =
-            Mat4.mul rotTranslationInv (Mat4.mul (Mat4.makeRotate rotation (vec3 0 1 0)) rotTranslation)
-
-        scale3d =
-            vec3 (Vec2.getX size) (Vec2.getY size) 1
-
-        scale =
-            Mat4.mul scaleTranslationInv (Mat4.mul (Mat4.makeScale scale3d) scaleTranslation)
     in
-    Mat4.mul (Mat4.mul transform rotation_) scale
+    Mat4.mul originTranslationInv (Mat4.mul rotationMat originTranslation)
+
+
+makeTransform : GameObject -> Mat4
+makeTransform { position, rotation } =
+    let
+        pos3d =
+            vec3 (Vec2.getX position) 0 (Vec2.getY position)
+
+        translation =
+            Mat4.makeTranslate pos3d
+    in
+    case rotation of
+        Just r ->
+            Mat4.mul translation (rotationTransform r)
+
+        Nothing ->
+            translation
 
 
 view : Model -> Html msg
@@ -295,18 +285,14 @@ view model =
 
 gameObjectToEntity : Mat4 -> GameObject -> WebGL.Entity
 gameObjectToEntity perspective obj =
-    let
-        pos3d =
-            vec3 (Vec2.getX obj.position) 0 (Vec2.getY obj.position)
-
-        transform =
-            makeTransform pos3d obj.size obj.rotation obj.rotationAxis obj.sizeAxis
-    in
     WebGL.entity
         vertexShader
         fragmentShader
         obj.mesh
-        { texture = obj.texture, perspective = perspective, transform = transform }
+        { texture = obj.texture
+        , perspective = perspective
+        , transform = makeTransform obj
+        }
 
 
 type alias Vertex =
@@ -370,11 +356,11 @@ fragmentShader =
 
 scene1Objects : Textures -> List GameObject
 scene1Objects { wall, tree } =
-    [ GameObject plane wall (vec2 0 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
-    , GameObject plane wall (vec2 2 0) -1 (vec3 1 0 0) (vec2 1 1) (vec3 0 0 0)
-    , GameObject plane wall (vec2 3 0) 1 (vec3 -1 0 0) (vec2 1 1) (vec3 0 0 0)
-    , GameObject plane wall (vec2 5 0) 0 (vec3 0 0 0) (vec2 1 1) (vec3 0 0 0)
-    , GameObject treeMesh tree (vec2 2 0) 0 (vec3 0 0 0) (vec2 1 3) (vec3 0 1 0)
+    [ GameObject plane wall (vec2 0 0) Nothing
+    , GameObject plane wall (vec2 2 0) (Just ( -1, vec3 1 0 0 ))
+    , GameObject plane wall (vec2 3 0) (Just ( 1, vec3 -1 0 0 ))
+    , GameObject plane wall (vec2 5 0) Nothing
+    , GameObject treeMesh tree (vec2 2 0) Nothing
     ]
 
 
