@@ -127,7 +127,7 @@ type Key
 
 keyDecoder : Decoder Key
 keyDecoder =
-    Decode.field "key" Decode.string
+    Decode.field "code" Decode.string
         |> Decode.andThen
             (\s ->
                 case s of
@@ -143,16 +143,16 @@ keyDecoder =
                     "ArrowRight" ->
                         Decode.succeed Right
 
-                    "a" ->
+                    "KeyA" ->
                         Decode.succeed Left
 
-                    "d" ->
+                    "KeyD" ->
                         Decode.succeed Right
 
-                    "w" ->
+                    "KeyW" ->
                         Decode.succeed Up
 
-                    "s" ->
+                    "KeyS" ->
                         Decode.succeed Down
 
                     _ ->
