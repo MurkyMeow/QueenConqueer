@@ -1,10 +1,11 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Array exposing (Array)
 import Browser
 import Browser.Events as Events
 import Html exposing (Html)
 import Html.Attributes exposing (height, style, width)
+import Html.Events exposing (onClick)
 import Json.Decode as Decode exposing (Decoder)
 import Math.Matrix4 as Mat4 exposing (Mat4)
 import Math.Vector2 as Vec2 exposing (Vec2, vec2)
@@ -12,6 +13,9 @@ import Math.Vector3 as Vec3 exposing (Vec3, vec3)
 import Task
 import WebGL
 import WebGL.Texture as Texture exposing (Error, Texture, defaultOptions)
+
+
+port requestPointerLock : () -> Cmd msg
 
 
 type Cell
@@ -69,6 +73,8 @@ type Msg
     = FramePassed Float
     | KeyPressed Key
     | KeyReleased Key
+    | MouseMoved Float
+    | CanvasClicked
     | TexturesError Error
     | TexturesLoaded Textures
 
@@ -140,6 +146,11 @@ keyDecoder =
                     _ ->
                         Decode.fail ("Not interested in " ++ s)
             )
+
+
+decodeMouseMovementX : Decode.Decoder Float
+decodeMouseMovementX =
+    Decode.field "movementX" Decode.float
 
 
 main : Program () Model Msg
@@ -255,7 +266,7 @@ makeTransform { position, rotation } =
             translation
 
 
-view : Model -> Html msg
+view : Model -> Html Msg
 view model =
     let
         w =
@@ -279,6 +290,7 @@ view model =
         [ width w
         , height h
         , style "display" "block"
+        , onClick CanvasClicked
         ]
         (List.map (gameObjectToEntity perspective) model.objects)
 
@@ -398,6 +410,12 @@ update msg model =
         KeyReleased Right ->
             ( { model | rotatingRight = False }, Cmd.none )
 
+        CanvasClicked ->
+            ( model, requestPointerLock () )
+
+        MouseMoved delta ->
+            ( { model | angle = model.angle + delta * 0.001 }, Cmd.none )
+
         TexturesLoaded textures ->
             ( { model | objects = scene1Objects textures }, Cmd.none )
 
@@ -462,6 +480,7 @@ subscriptions : Model -> Sub Msg
 subscriptions _ =
     Sub.batch
         [ Events.onAnimationFrameDelta FramePassed
+        , Events.onMouseMove (Decode.map MouseMoved decodeMouseMovementX)
         , Events.onKeyDown (Decode.map KeyPressed keyDecoder)
         , Events.onKeyUp (Decode.map KeyReleased keyDecoder)
         ]
