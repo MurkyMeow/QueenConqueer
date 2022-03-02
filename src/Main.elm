@@ -143,6 +143,18 @@ keyDecoder =
                     "ArrowRight" ->
                         Decode.succeed Right
 
+                    "a" ->
+                        Decode.succeed Left
+
+                    "d" ->
+                        Decode.succeed Right
+
+                    "w" ->
+                        Decode.succeed Up
+
+                    "s" ->
+                        Decode.succeed Down
+
                     _ ->
                         Decode.fail ("Not interested in " ++ s)
             )
