@@ -52,8 +52,8 @@ cellAt x y =
 type alias Model =
     { goingForward : Bool
     , goingBackward : Bool
-    , rotatingLeft : Bool
-    , rotatingRight : Bool
+    , goingLeft : Bool
+    , goingRight : Bool
     , posX : Float
     , posY : Float
     , angle : Float
@@ -167,8 +167,8 @@ init : () -> ( Model, Cmd Msg )
 init _ =
     ( { goingForward = False
       , goingBackward = False
-      , rotatingLeft = False
-      , rotatingRight = False
+      , goingLeft = False
+      , goingRight = False
       , posX = 0.5
       , posY = 0.5
       , angle = pi
@@ -399,16 +399,16 @@ update msg model =
             ( { model | goingBackward = False }, Cmd.none )
 
         KeyPressed Left ->
-            ( { model | rotatingLeft = True }, Cmd.none )
+            ( { model | goingLeft = True }, Cmd.none )
 
         KeyReleased Left ->
-            ( { model | rotatingLeft = False }, Cmd.none )
+            ( { model | goingLeft = False }, Cmd.none )
 
         KeyPressed Right ->
-            ( { model | rotatingRight = True }, Cmd.none )
+            ( { model | goingRight = True }, Cmd.none )
 
         KeyReleased Right ->
-            ( { model | rotatingRight = False }, Cmd.none )
+            ( { model | goingRight = False }, Cmd.none )
 
         CanvasClicked ->
             ( model, requestPointerLock () )
@@ -426,39 +426,49 @@ update msg model =
 step : Float -> Model -> Model
 step delta model =
     let
-        rotationSpeed =
-            0.0025 * delta
-
-        newAngle =
-            case ( model.rotatingLeft, model.rotatingRight ) of
-                ( True, False ) ->
-                    model.angle - rotationSpeed
-
-                ( False, True ) ->
-                    model.angle + rotationSpeed
-
-                _ ->
-                    model.angle
-
         movementSpeed =
             0.0025 * delta
+
+        angle =
+            model.angle
+
+        angleSin =
+            sin angle * movementSpeed
+
+        angleCos =
+            cos angle * movementSpeed
 
         ( newPosX, newPosY ) =
             case ( model.goingForward, model.goingBackward ) of
                 ( True, False ) ->
-                    ( model.posX + cos newAngle * movementSpeed
-                    , model.posY + sin newAngle * movementSpeed
+                    ( model.posX + angleCos
+                    , model.posY + angleSin
                     )
 
                 ( False, True ) ->
-                    ( model.posX - cos newAngle * movementSpeed
-                    , model.posY - sin newAngle * movementSpeed
+                    ( model.posX - angleCos
+                    , model.posY - angleSin
                     )
 
                 _ ->
                     ( model.posX, model.posY )
+
+        ( newPosX2, newPosY2 ) =
+            case ( model.goingLeft, model.goingRight ) of
+                ( True, False ) ->
+                    ( newPosX + sin angle * movementSpeed
+                    , newPosY - cos angle * movementSpeed
+                    )
+
+                ( False, True ) ->
+                    ( newPosX - sin angle * movementSpeed
+                    , newPosY + cos angle * movementSpeed
+                    )
+
+                _ ->
+                    ( newPosX, newPosY )
     in
-    { model | angle = newAngle, posX = newPosX, posY = newPosY }
+    { model | posX = newPosX2, posY = newPosY2 }
 
 
 attemptMove : ( Float, Float ) -> ( Float, Float ) -> ( Float, Float )
