@@ -54,6 +54,7 @@ type alias Model =
     , goingBackward : Bool
     , goingLeft : Bool
     , goingRight : Bool
+    , mouseSensitivity : Float
     , posX : Float
     , posY : Float
     , angle : Float
@@ -181,6 +182,7 @@ init _ =
       , goingBackward = False
       , goingLeft = False
       , goingRight = False
+      , mouseSensitivity = 0.001
       , posX = 0.5
       , posY = 0.5
       , angle = pi
@@ -426,7 +428,7 @@ update msg model =
             ( model, requestPointerLock () )
 
         MouseMoved delta ->
-            ( { model | angle = model.angle + delta * 0.001 }, Cmd.none )
+            ( { model | angle = model.angle + delta * model.mouseSensitivity }, Cmd.none )
 
         TexturesLoaded textures ->
             ( { model | objects = scene1Objects textures }, Cmd.none )
